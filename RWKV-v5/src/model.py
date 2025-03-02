@@ -817,8 +817,8 @@ class RWKV_Tmix_x070(MyModule):
             # D_AAA_LORA = 64
             D_AAA_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
-            self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
-            self.a0 = nn.Parameter(torch.zeros(1,1,C))
+            self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, 1), 0.1))
+            self.a0 = nn.Parameter(torch.zeros(1,1,1))
 
             # D_MV_LORA = 32
             D_MV_LORA = max(32, int(round(  (1.3*(C**0.5))  /32)*32)) # suggestion
@@ -871,6 +871,7 @@ class RWKV_Tmix_x070(MyModule):
         else:
             v = v + (v_first - v) * torch.sigmoid(self.v0 + (xv @ self.v1) @ self.v2) # add value residual
         a = torch.sigmoid(self.a0 + (xa @ self.a1) @ self.a2) # a is "in-context learning rate"
+        a = a.expand_as(x).contiguous()
         g = torch.sigmoid(xg @ self.g1) @ self.g2
 
         kk = k * self.k_k
@@ -880,7 +881,7 @@ class RWKV_Tmix_x070(MyModule):
         x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
 
-        # x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
+        x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
         x = self.output(x * g)
         return x, v_first
     
