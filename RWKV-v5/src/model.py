@@ -808,17 +808,14 @@ class RWKV_Tmix_x070(MyModule):
             # D_DECAY_LORA = 64
             D_DECAY_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
-            self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
-            decay_speed = torch.ones(C)
-            for n in range(C):
-                decay_speed[n] = -7 + 5 * (n / (C - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
-            self.w0 = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
+            self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, 1), 0.1))
+            self.w0 = nn.Parameter(torch.tensor([[-7.0 + 5.0 * ratio_0_to_1 ** 0.5]])) # !!! 0.5 comes from F.softplus !!!
 
             # D_AAA_LORA = 64
             D_AAA_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
-            self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, 1), 0.1))
-            self.a0 = nn.Parameter(torch.zeros(1,1,1))
+            self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
+            self.a0 = nn.Parameter(torch.zeros(1,1,C))
 
             # D_MV_LORA = 32
             D_MV_LORA = max(32, int(round(  (1.3*(C**0.5))  /32)*32)) # suggestion
@@ -864,6 +861,7 @@ class RWKV_Tmix_x070(MyModule):
 
         r = self.receptance(xr)
         w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
+        w = w.expand_as(x).contiguous()
         k = self.key(xk)
         v = self.value(xv)
         if self.layer_id == 0:
@@ -871,7 +869,6 @@ class RWKV_Tmix_x070(MyModule):
         else:
             v = v + (v_first - v) * torch.sigmoid(self.v0 + (xv @ self.v1) @ self.v2) # add value residual
         a = torch.sigmoid(self.a0 + (xa @ self.a1) @ self.a2) # a is "in-context learning rate"
-        a = a.expand_as(x).contiguous()
         g = torch.sigmoid(xg @ self.g1) @ self.g2
 
         kk = k * self.k_k
