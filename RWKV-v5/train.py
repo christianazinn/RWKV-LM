@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_testing", default='x052', type=str)
     parser.add_argument("--my_exit", default=99999999, type=int)
     parser.add_argument("--my_exit_tokens", default=0, type=int)
+    parser.add_argument("--suffix", default="", type=str)
 
     if pl.__version__[0]=='2':
         parser.add_argument("--accelerator", default="gpu", type=str)
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
         args.proj_dir = f"{args.proj_dir}-{args.run_name}"
     else:
-        args.run_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd}"
+        args.run_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd} {args.suffix}"
     if not os.path.exists(args.proj_dir):
         os.makedirs(args.proj_dir)
 

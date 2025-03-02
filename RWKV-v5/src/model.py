@@ -844,10 +844,10 @@ class RWKV_Tmix_x070(MyModule):
             self.ln_x = nn.GroupNorm(H, C, eps=(1e-5)*(args.head_size_divisor**2)) # !!! notice eps value !!!
 
             # !!! initialize if you are using RWKV_Tmix_x070 in your code !!!
-            # self.receptance.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
-            # self.key.weight.data.uniform_(-0.05/(C**0.5), 0.05/(C**0.5))
-            # self.value.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
-            # self.output.weight.data.zero_()
+            self.receptance.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
+            self.key.weight.data.uniform_(-0.05/(C**0.5), 0.05/(C**0.5))
+            self.value.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
+            self.output.weight.data.zero_()
 
     @MyFunction
     def forward(self, x, v_first):
@@ -873,11 +873,12 @@ class RWKV_Tmix_x070(MyModule):
         a = torch.sigmoid(self.a0 + (xa @ self.a1) @ self.a2) # a is "in-context learning rate"
         g = torch.sigmoid(xg @ self.g1) @ self.g2
 
-        kk = k * self.k_k
-        kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
-        k = k * (1 + (a-1) * self.k_a)
+        # kk = k * self.k_k
+        # kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
+        # k = k * (1 + (a-1) * self.k_a)
+        kk = F.normalize(k.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
 
-        x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
+        x = RUN_CUDA_RWKV7g(r, w, k*a, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
 
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
@@ -963,8 +964,8 @@ class RWKV_CMix_x070(MyModule):
         self.value = nn.Linear(args.n_embd * 4, args.n_embd, bias=False)
 
         # !!! initialize if you are using RWKV_Tmix_x070 in your code !!!
-        # self.key.weight.data.uniform_(-0.5/(args.n_embd**0.5), 0.5/(args.n_embd**0.5))
-        # self.value.weight.data.zero_()
+        self.key.weight.data.uniform_(-0.5/(args.n_embd**0.5), 0.5/(args.n_embd**0.5))
+        self.value.weight.data.zero_()
 
     @MyFunction
     def forward(self, x):
