@@ -880,7 +880,7 @@ class RWKV_Tmix_x070(MyModule):
         x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
 
-        x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
+        # x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
         x = self.output(x * g)
         return x, v_first
     
