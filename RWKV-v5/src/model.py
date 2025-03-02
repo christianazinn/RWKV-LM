@@ -873,12 +873,11 @@ class RWKV_Tmix_x070(MyModule):
         a = torch.sigmoid(self.a0 + (xa @ self.a1) @ self.a2) # a is "in-context learning rate"
         g = torch.sigmoid(xg @ self.g1) @ self.g2
 
-        # kk = k * self.k_k
-        # kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
-        # k = k * (1 + (a-1) * self.k_a)
-        kk = F.normalize(k.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
+        kk = k * self.k_k
+        kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
+        k = k * (1 + (a-1) * self.k_a)
 
-        x = RUN_CUDA_RWKV7g(r, w, k*a, v, -kk, kk*a)
+        x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
 
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
